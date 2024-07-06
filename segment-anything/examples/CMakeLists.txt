@@ -12,7 +12,8 @@ string(STRIP "${SDL2_LIBRARIES}" SDL2_LIBRARIES)
 add_subdirectory(third-party)
 
 install(TARGETS ${SAM_TARGET} RUNTIME)
-target_link_libraries(${SAM_TARGET} PRIVATE sam.cpp imgui-sdl2 ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${SAM_TARGET} PRIVATE sam_lib imgui-sdl2 ${CMAKE_THREAD_LIBS_INIT} ${SDL2_LIBRARIES})
+target_include_directories(${SAM_TARGET} PRIVATE ${CMAKE_SOURCE_DIR})
 target_compile_features(${SAM_TARGET} PUBLIC cxx_std_11)
 
 if(MSVC)

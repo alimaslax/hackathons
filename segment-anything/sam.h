@@ -1,3 +1,4 @@
+//"sam.h"
 #pragma once
 
 #include <vector>
@@ -6,31 +7,34 @@
 #include <thread>
 #include <memory>
 
-struct sam_point {
-    float x = 0;
-    float y = 0;
-};
+#define _USE_MATH_DEFINES
 
-// RGB uint8 image
-struct sam_image_u8 {
-    int nx = 0;
-    int ny = 0;
+#include "sam_image.h"
+#include "sam_params.h"
+#include "sam_encoder.h"
+#include "sam_ggml_state.h"
 
-    std::vector<uint8_t> data;
-};
+#include "ggml.h"
+#include "ggml-alloc.h"
+#include "ggml-backend.h"
 
-struct sam_params {
-    int32_t seed      = -1; // RNG seed
-    int32_t n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency());
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <map>
 
-    std::string model     = "../checkpoints/ggml-model-f16-b.bin"; // model path
-    std::string fname_inp = "../img.jpg";
-    std::string fname_out = "img.out";
-};
+#if defined(_MSC_VER)
+#pragma warning(disable : 4244 4267) // possible loss of data
+#endif
 
 struct sam_ggml_state;
+
 struct sam_ggml_model;
-struct sam_state {
+
+struct sam_state
+{
     std::unique_ptr<sam_ggml_state> state;
     std::unique_ptr<sam_ggml_model> model;
     int t_load_ms = 0;
@@ -38,22 +42,10 @@ struct sam_state {
     int t_compute_masks_ms = 0;
 };
 
+// Main function declarations
 std::shared_ptr<sam_state> sam_load_model(
-        const sam_params & params);
+    const sam_params &params);
 
-bool sam_compute_embd_img(
-        const sam_image_u8 & img,
-        int                  n_threads ,
-        sam_state          & state);
-
-// returns masks sorted by the sum of the iou_score and stability_score in descending order
-std::vector<sam_image_u8> sam_compute_masks(
-        const sam_image_u8 & img,
-        int                  n_threads,
-        sam_point            pt,
-        sam_state          & state,
-        int                  mask_on_val  = 255,
-        int                  mask_off_val = 0);
-
-void sam_deinit(
-        sam_state & state);
+std::shared_ptr<sam_state> sam_load_model(const sam_params &params);
+std::vector<sam_image_u8> sam_compute_masks(const sam_image_u8 &img, int n_threads, sam_point pt, sam_state &state, int mask_on_val = 255, int mask_off_val = 0);
+void sam_deinit(sam_state &state);

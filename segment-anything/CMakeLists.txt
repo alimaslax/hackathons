@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project("sam.cpp")
+project("sam")
 
 if (NOT XCODE AND NOT MSVC AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -20,11 +20,33 @@ option(SAM_BUILD_EXAMPLES "sam: build examples" ${SAM_STANDALONE})
 
 add_subdirectory(ggml)
 
-set(SAM_LIB sam.cpp)
+set(SAM_LIB sam_lib)
 
-add_library(${SAM_LIB} sam.cpp sam.h)
+set(SAM_SOURCES
+    sam_core.cpp
+    sam_encoder.cpp
+    sam_utils.cpp
+    sam_graph.cpp
+    sam_postprocess.cpp
+)
+
+set(SAM_HEADERS
+    sam.h
+    sam_encoder.h
+    sam_utils.h
+    sam_ggml_state.h
+    sam_image.h
+    sam_params.h
+    sam_graph.h
+    sam_postprocess.h
+)
+
+add_library(${SAM_LIB} ${SAM_SOURCES} ${SAM_HEADERS})
 target_link_libraries(${SAM_LIB} PUBLIC ggml)
-target_include_directories(${SAM_LIB} PUBLIC .)
+target_include_directories(${SAM_LIB} PUBLIC 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include>
+)
 target_compile_features(${SAM_LIB} PUBLIC cxx_std_14)
 
 if (SAM_BUILD_EXAMPLES)
