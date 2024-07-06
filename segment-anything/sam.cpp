@@ -1,8 +1,4 @@
 #include "sam.h"
-#include "sam_utils.h"
-#include "sam_graph.h"
-#include "sam_ggml_state.h"
-#include "sam_postprocess.h"
 
 // Implementations of sam_load_model, sam_compute_masks, sam_deinit
 

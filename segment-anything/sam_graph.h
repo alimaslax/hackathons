@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sam.h"
+#include "sam_encoder.h"
 #include "sam_ggml_state.h"
 #include "sam_image.h"
 

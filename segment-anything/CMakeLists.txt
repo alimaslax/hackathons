@@ -23,7 +23,7 @@ add_subdirectory(ggml)
 set(SAM_LIB sam_lib)
 
 set(SAM_SOURCES
-    sam_core.cpp
+    sam.cpp
     sam_encoder.cpp
     sam_utils.cpp
     sam_graph.cpp
@@ -31,8 +31,11 @@ set(SAM_SOURCES
 )
 
 set(SAM_HEADERS
-    sam_utils.h
     sam.h
+    sam_encoder.h
+    sam_utils.h
+    sam_graph.h
+    sam_postprocess.h
 )
 
 add_library(${SAM_LIB} ${SAM_SOURCES} ${SAM_HEADERS})
