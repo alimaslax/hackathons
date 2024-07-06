@@ -1,13 +1,13 @@
 #include "sam_utils.h"
 #include "sam.h"
 
-static void ggml_graph_compute_helper(ggml_backend_t backend, ggml_cgraph *graph, int n_threads)
+void ggml_graph_compute_helper(ggml_backend_t backend, ggml_cgraph *graph, int n_threads)
 {
     ggml_backend_cpu_set_n_threads(backend, n_threads);
     ggml_backend_graph_compute(backend, graph);
 }
 
-static void ggml_disconnect_node_from_graph(ggml_tensor *t)
+void ggml_disconnect_node_from_graph(ggml_tensor *t)
 {
     t->op = GGML_OP_NONE;
     for (int i = 0; i < GGML_MAX_SRC; i++)
@@ -16,7 +16,7 @@ static void ggml_disconnect_node_from_graph(ggml_tensor *t)
     }
 }
 
-static void ggml_sam_sin(struct ggml_tensor *dst, const struct ggml_tensor *src, int ith, int nth, void *userdata)
+void ggml_sam_sin(struct ggml_tensor *dst, const struct ggml_tensor *src, int ith, int nth, void *userdata)
 {
     GGML_ASSERT(userdata == NULL);
     GGML_ASSERT(ggml_are_same_shape(dst, src));
@@ -37,7 +37,7 @@ static void ggml_sam_sin(struct ggml_tensor *dst, const struct ggml_tensor *src,
     }
 }
 
-static void ggml_sam_cos(struct ggml_tensor *dst, const struct ggml_tensor *src, int ith, int nth, void *userdata)
+void ggml_sam_cos(struct ggml_tensor *dst, const struct ggml_tensor *src, int ith, int nth, void *userdata)
 {
     GGML_ASSERT(userdata == NULL);
     GGML_ASSERT(ggml_are_same_shape(dst, src));
