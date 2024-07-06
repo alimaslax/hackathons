@@ -33,12 +33,6 @@ set(SAM_SOURCES
 set(SAM_HEADERS
     sam_utils.h
     sam.h
-    sam_encoder.h
-    sam_ggml_state.h
-    sam_image.h
-    sam_params.h
-    sam_graph.h
-    sam_postprocess.h
 )
 
 add_library(${SAM_LIB} ${SAM_SOURCES} ${SAM_HEADERS})

@@ -1,7 +1,6 @@
 #include "sam.h"
 #include "sam_utils.h"
 #include "sam_graph.h"
-#include "sam_encoder.h"
 #include "sam_ggml_state.h"
 #include "sam_postprocess.h"
 
@@ -692,6 +691,157 @@ std::shared_ptr<sam_state> sam_load_model(const sam_params &params)
     state.t_load_ms = ggml_time_ms() - t_start_ms;
 
     return std::make_unique<sam_state>(std::move(state));
+}
+
+bool sam_image_preprocess(const sam_image_u8 &img, sam_image_f32 &res)
+{
+    const int nx = img.nx;
+    const int ny = img.ny;
+
+    const int nx2 = 1024;
+    const int ny2 = 1024;
+
+    res.nx = nx2;
+    res.ny = ny2;
+    res.data.resize(3 * nx2 * ny2);
+
+    const float scale = std::max(nx, ny) / 1024.0f;
+
+    fprintf(stderr, "%s: scale = %f\n", __func__, scale);
+
+    const int nx3 = int(nx / scale + 0.5f);
+    const int ny3 = int(ny / scale + 0.5f);
+
+    const float m3[3] = {123.675f, 116.280f, 103.530f};
+    const float s3[3] = {58.395f, 57.120f, 57.375f};
+
+    for (int y = 0; y < ny3; y++)
+    {
+        for (int x = 0; x < nx3; x++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                // linear interpolation
+                const float sx = (x + 0.5f) * scale - 0.5f;
+                const float sy = (y + 0.5f) * scale - 0.5f;
+
+                const int x0 = std::max(0, (int)std::floor(sx));
+                const int y0 = std::max(0, (int)std::floor(sy));
+
+                const int x1 = std::min(x0 + 1, nx - 1);
+                const int y1 = std::min(y0 + 1, ny - 1);
+
+                const float dx = sx - x0;
+                const float dy = sy - y0;
+
+                const int j00 = 3 * (y0 * nx + x0) + c;
+                const int j01 = 3 * (y0 * nx + x1) + c;
+                const int j10 = 3 * (y1 * nx + x0) + c;
+                const int j11 = 3 * (y1 * nx + x1) + c;
+
+                const float v00 = img.data[j00];
+                const float v01 = img.data[j01];
+                const float v10 = img.data[j10];
+                const float v11 = img.data[j11];
+
+                const float v0 = v00 * (1.0f - dx) + v01 * dx;
+                const float v1 = v10 * (1.0f - dx) + v11 * dx;
+
+                const float v = v0 * (1.0f - dy) + v1 * dy;
+
+                const uint8_t v2 = std::min(std::max(std::round(v), 0.0f), 255.0f);
+
+                const int i = 3 * (y * nx3 + x) + c;
+
+                res.data[i] = (float(v2) - m3[c]) / s3[c];
+            }
+        }
+    }
+
+    return true;
+}
+
+bool sam_compute_embd_img(const sam_image_u8 &img, int n_threads, sam_state &state)
+{
+    if (!state.model || !state.state)
+    {
+        return false;
+    }
+
+    const int64_t t_start_ms = ggml_time_ms();
+
+    // preprocess to f32
+    sam_image_f32 img1;
+    if (!sam_image_preprocess(img, img1))
+    {
+        fprintf(stderr, "%s: failed to preprocess image\n", __func__);
+        return false;
+    }
+
+    fprintf(stderr, "%s: preprocessed image (%d x %d)\n", __func__, img1.nx, img1.ny);
+
+    static const size_t buf_size = 256u * 1024 * 1024;
+
+    auto &st = *state.state;
+    auto &model = *state.model;
+
+    if (st.ctx_img)
+    {
+        ggml_free(st.ctx_img);
+        st.ctx_img = {};
+    }
+
+    struct ggml_init_params ggml_params = {
+        /*.mem_size   =*/buf_size,
+        /*.mem_buffer =*/NULL,
+        /*.no_alloc   =*/false,
+    };
+
+    st.ctx_img = ggml_init(ggml_params);
+
+    st.embd_img = ggml_new_tensor_3d(st.ctx_img, GGML_TYPE_F32,
+                                     model.hparams.n_img_embd(), model.hparams.n_img_embd(), model.hparams.n_enc_out_chans);
+
+    // Encode the image
+    const size_t alignment = ggml_backend_get_alignment(model.backend);
+    st.allocr = ggml_allocr_new_measure(alignment);
+
+    struct ggml_cgraph *gf_measure = sam_encode_image(model, st, img1);
+    if (!gf_measure)
+    {
+        fprintf(stderr, "%s: failed to encode image\n", __func__);
+        return false;
+    }
+
+    size_t alloc_size = ggml_allocr_alloc_graph(st.allocr, gf_measure);
+    ggml_allocr_free(st.allocr);
+
+    // recreate allocator with exact memory requirements
+    ggml_backend_buffer_t buf_compute = ggml_backend_alloc_buffer(model.backend, alloc_size);
+    st.allocr = ggml_allocr_new_from_buffer(buf_compute);
+
+    // compute the graph with the measured exact memory requirements from above
+    ggml_allocr_reset(st.allocr);
+
+    struct ggml_cgraph *gf = sam_encode_image(model, st, img1);
+    if (!gf)
+    {
+        fprintf(stderr, "%s: failed to encode image\n", __func__);
+        return false;
+    }
+
+    ggml_allocr_alloc_graph(st.allocr, gf);
+
+    ggml_graph_compute_helper(model.backend, gf, n_threads);
+
+    ggml_allocr_free(st.allocr);
+    ggml_backend_buffer_free(buf_compute);
+
+    st.allocr = {};
+
+    state.t_compute_img_ms = ggml_time_ms() - t_start_ms;
+
+    return true;
 }
 
 std::vector<sam_image_u8> sam_compute_masks(

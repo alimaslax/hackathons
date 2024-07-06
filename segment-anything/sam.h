@@ -1,12 +1,6 @@
 //"sam.h"
 #pragma once
 
-#include <vector>
-#include <cstdint>
-#include <string>
-#include <thread>
-#include <memory>
-
 #define _USE_MATH_DEFINES
 
 #include "sam_image.h"
@@ -14,10 +8,11 @@
 #include "sam_encoder.h"
 #include "sam_ggml_state.h"
 
-#include "ggml.h"
-#include "ggml-alloc.h"
-#include "ggml-backend.h"
-
+#include <vector>
+#include <cstdint>
+#include <string>
+#include <thread>
+#include <memory>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -28,10 +23,6 @@
 #if defined(_MSC_VER)
 #pragma warning(disable : 4244 4267) // possible loss of data
 #endif
-
-struct sam_ggml_state;
-
-struct sam_ggml_model;
 
 struct sam_state
 {

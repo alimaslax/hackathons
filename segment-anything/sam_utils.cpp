@@ -1,5 +1,4 @@
 #include "sam_utils.h"
-#include "sam.h"
 
 void ggml_graph_compute_helper(ggml_backend_t backend, ggml_cgraph *graph, int n_threads)
 {
